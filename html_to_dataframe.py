@@ -1,5 +1,7 @@
 import sys
+from datetime import datetime
 import pandas as pd
+import numpy as np
 import plotly.express as px
 from bs4 import BeautifulSoup
 import re
@@ -21,7 +23,7 @@ def get_file_text(file_path):
         return f"\nERROR:\n{e}\n"
 
 
-#
+# Extract infos from each div with the class_name, returning a list of dict's
 def extract_info_from_divs(html, class_name):
     try:
         soup = BeautifulSoup(html, 'html.parser')
@@ -102,72 +104,76 @@ def extract_info_from_divs(html, class_name):
         return f"An error occurred: {e}"
 
 
-#
-
+# Creates a dataframe with a list of dict's
 def create_dataframe(info_list, csv_file_name=None):
     # Create a DataFrame from the list of dictionaries
     df = pd.DataFrame(info_list)
     
-    # If a filename is provided, export the DataFrame to a CSV file
-    if csv_file_name:
-        df.to_csv(f'{csv_file_name}.csv', index=False, encoding='utf-8-sig')
-    
     # Reorder columns
     df = df[['product_name', 'currency', 'commission', 'max_price',
        'comment_rating', 'comments', 'temperature', 'img_src']]
+    
+    # If a filename is provided, export the DataFrame to a CSV file
+    if csv_file_name:
+        df.to_csv(f'{csv_file_name}.csv', index=False, encoding='utf-8-sig')
     return df
 
 
-
-#
-
-def create_interactive_scatter_plot(df, file_name='scatter_plot.html'):
+# Creates a interactive scatter plot with the data of a dataframe
+def create_interactive_scatter_plot(df, file_name='scatter_plot'):
     # df filter
-    df = df[df["comment_rating"]>0]
+    df = df[(df["comment_rating"]>0)&(df["commission"]>0.0)].copy()
+
+    # categorize comment_rating
+    df['symbol'] = df["comment_rating"].astype(int)
     
     # Create a scatter plot with Plotly
     fig = px.scatter(
         df,
         x='max_price',
         y='commission',
-        size='comment_rating',
+        size=df['comments']+1,
+        symbol='symbol',
         color='temperature',
         color_continuous_scale='OrRd',
         range_color=[0, 150],
-        title='Scatter Plot of Commission vs Max Price with Regression Line<br><span>Filtered by comment_rating > 0</span>',
+        title='Scatter Plot of Commission vs Max Price with Regression Line<br><span>Filtered by comment_rating > 0 and commission > 0. Size is relative to total comments.</span>',
         hover_name='product_name',
         hover_data=['currency', 'commission', 'max_price', 'comment_rating', 'comments', 'temperature'],
-        trendline='ols'  # Adds the regression line
+        trendline='ols',  # Adds the regression line
     )
+    fig.update_traces(marker=dict(line=dict(width=1, color='white')))
+    fig.update_layout(legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="right",
+        x=1))
     
     # Update layout for dark theme
     fig.update_layout(template='plotly_dark')
     
     # Save the plot to an HTML file
-    fig.write_html(file_name)
-
+    fig.write_html(f'{file_name}.html')
 
 
 ####################################################################################################
 # INPUT ############################################################################################
 ####################################################################################################
 
-file_path = "test_html.txt"
-html = get_file_text(file_path)
-print(f'\n{html[-10:]}\n')
+# get html data
+html = get_file_text("test_html.txt") #search_data.txt
 
-# product_name_list = extract_span_by_class(html, "product-name")
-# print(f'\n{product_name_list}\n')
-
-# cover_url_list = extract_img_src_by_class(html, "_h-full")
-# print(f'\n{cover_url_list}\n')
-
+# extract infos as a list
 info_list = extract_info_from_divs(html, "hot-col-xl-3 hot-col-lg-4 hot-col-md-6 hot-col-sm-12 _py-3")
-print(f'\n{info_list}\n')
-print(f'\n{info_list[0]}\n')
-print(f'\n{info_list[8]}\n')
-print(f'\n{info_list[9]}\n')
 
-df = create_dataframe(info_list, "test_")
+# export file name
+timenow = str(datetime.now())[:19].replace(":", "-").replace(" ", "_")
+file_name = f'analysis\hotmart_search_{timenow}'
+
+# create the dataframe
+df = create_dataframe(info_list, file_name)
 print(f'\n{df}\n')
-create_interactive_scatter_plot(df, file_name='scatter_plot.html')
+
+# plot insights
+create_interactive_scatter_plot(df, file_name)
