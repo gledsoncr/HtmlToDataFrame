@@ -33,6 +33,11 @@ def extract_info_from_divs(html, class_name):
         for div in divs:
             info = {}
 
+            # Extract product url from <a> inside the <href>
+            a = div.find('a')
+            if a and 'href' in a.attrs:
+                info['product_url'] = "https://app.hotmart.com" + a['href']
+
             # Extract image src from <img> inside the <div>
             img = div.find('img')
             if img and 'src' in img.attrs:
@@ -111,7 +116,7 @@ def create_dataframe(info_list, csv_file_name=None):
     
     # Reorder columns
     df = df[['product_name', 'currency', 'commission', 'max_price',
-       'comment_rating', 'comments', 'temperature', 'img_src']]
+    'comment_rating', 'comments', 'temperature', 'product_url', 'img_src']]
     
     # If a filename is provided, export the DataFrame to a CSV file
     if csv_file_name:
@@ -138,6 +143,8 @@ def create_interactive_scatter_plot(df, file_name='scatter_plot'):
         color_continuous_scale='OrRd',
         range_color=[0, 150],
         title='Scatter Plot of Commission vs Max Price with Regression Line<br><span>Filtered by comment_rating > 0 and commission > 0. Size is relative to total comments.</span>',
+        category_orders={'symbol':[1, 2, 3, 4, 5]},
+        labels={'symbol':'Symbol (comment rating)', 'size':'Size (comments)', 'currency':'Currency', 'commission':'Commission', 'max_price':'Max Price', 'comment_rating':'Comment Rating', 'comments':'Comments', 'temperature':'Temperature'},
         hover_name='product_name',
         hover_data=['currency', 'commission', 'max_price', 'comment_rating', 'comments', 'temperature'],
         trendline='ols',  # Adds the regression line
@@ -157,23 +164,27 @@ def create_interactive_scatter_plot(df, file_name='scatter_plot'):
     fig.write_html(f'{file_name}.html')
 
 
+# Run the app
+def _main(path):
+    # get html data
+    html = get_file_text(path)
+
+    # extract infos as a list
+    info_list = extract_info_from_divs(html, "hot-col-xl-3 hot-col-lg-4 hot-col-md-6 hot-col-sm-12 _py-3")
+
+    # export file name
+    timenow = str(datetime.now())[:19].replace(":", "-").replace(" ", "_")
+    file_name = f'analysis\hotmart_search_{timenow}'
+
+    # create the dataframe
+    df = create_dataframe(info_list, file_name)
+    print(f'\n{df}\n')
+
+    # plot insights
+    create_interactive_scatter_plot(df, file_name)
+
 ####################################################################################################
 # INPUT ############################################################################################
 ####################################################################################################
 
-# get html data
-html = get_file_text("test_html.txt") #search_data.txt
-
-# extract infos as a list
-info_list = extract_info_from_divs(html, "hot-col-xl-3 hot-col-lg-4 hot-col-md-6 hot-col-sm-12 _py-3")
-
-# export file name
-timenow = str(datetime.now())[:19].replace(":", "-").replace(" ", "_")
-file_name = f'analysis\hotmart_search_{timenow}'
-
-# create the dataframe
-df = create_dataframe(info_list, file_name)
-print(f'\n{df}\n')
-
-# plot insights
-create_interactive_scatter_plot(df, file_name)
+_main("search_data.txt")
