@@ -114,6 +114,9 @@ def create_dataframe(info_list, csv_file_name=None):
     # Create a DataFrame from the list of dictionaries
     df = pd.DataFrame(info_list)
     
+    # drop duplicates by product url because some products have the exact same name
+    df = df.drop_duplicates(subset=['product_url'])
+
     # Reorder columns
     df = df[['product_name', 'currency', 'commission', 'max_price',
     'comment_rating', 'comments', 'temperature', 'product_url', 'img_src']]
