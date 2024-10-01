@@ -1,6 +1,7 @@
-# HTML and CSV extensions
+# HTML and CSV extensions and temporary files
 *.html
 *.csv
+*~$*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
